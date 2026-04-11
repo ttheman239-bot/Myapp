@@ -33,6 +33,7 @@ data class PairResult(
     val backtestHitRate: Double,
     val backtestAvgRet: Double,
     val equityCurve: List<Double>,
+    val playbook: Playbook,
 ) {
     /** Loose verdict useful for a quick badge on the ranking list. */
     val verdict: Verdict
@@ -41,6 +42,28 @@ data class PairResult(
             kotlin.math.abs(backtestSharpe) >= 0.5 && kotlin.math.abs(tStat) >= 2.0 -> Verdict.OK
             else                                                                    -> Verdict.WEAK
         }
+}
+
+data class Playbook(
+    val instrument: String,
+    val instrumentAlt: String,
+    val entryRule: String,
+    val entryTime: String,
+    val exitRule: String,
+    val exitTime: String,
+    val positionSize: String,
+    val stopLoss: String,
+    val capitalMinUsd: Int,
+    val tcostBps: Int,
+    val expectedWins: String,
+    val avgWinPct: Double,
+    val avgLossPct: Double,
+    val tradesPerYear: Int,
+    val exampleTrade: String,
+    val risks: List<String>,
+    val brokerNotes: String,
+) {
+    val hasDetail: Boolean get() = instrument.isNotBlank() && instrument != "-"
 }
 
 enum class Verdict(val label: String, val short: String) {
@@ -78,6 +101,8 @@ object ResearchRepository {
                 val eq = buildList(eqArr.length()) {
                     for (j in 0 until eqArr.length()) add(eqArr.getDouble(j))
                 }
+                val pbObj = p.optJSONObject("playbook")
+                val playbook = if (pbObj != null) parsePlaybook(pbObj) else emptyPlaybook()
                 add(
                     PairResult(
                         leadSymbol     = p.getString("lead_symbol"),
@@ -95,6 +120,7 @@ object ResearchRepository {
                         backtestHitRate= p.getDouble("backtest_hit_rate"),
                         backtestAvgRet = p.getDouble("backtest_avg_ret"),
                         equityCurve    = eq,
+                        playbook       = playbook,
                     )
                 )
             }
@@ -108,4 +134,38 @@ object ResearchRepository {
             pairs          = pairs,
         )
     }
+
+    private fun parsePlaybook(p: JSONObject): Playbook {
+        val risksArr = p.optJSONArray("risks")
+        val risks = if (risksArr == null) emptyList() else buildList(risksArr.length()) {
+            for (k in 0 until risksArr.length()) add(risksArr.getString(k))
+        }
+        return Playbook(
+            instrument    = p.optString("instrument", "-"),
+            instrumentAlt = p.optString("instrument_alt", "-"),
+            entryRule     = p.optString("entry_rule", "-"),
+            entryTime     = p.optString("entry_time", "-"),
+            exitRule      = p.optString("exit_rule", "-"),
+            exitTime      = p.optString("exit_time", "-"),
+            positionSize  = p.optString("position_size", "-"),
+            stopLoss      = p.optString("stop_loss", "-"),
+            capitalMinUsd = p.optInt("capital_min_usd", 0),
+            tcostBps      = p.optInt("tcost_bps", 0),
+            expectedWins  = p.optString("expected_wins", "-"),
+            avgWinPct     = p.optDouble("avg_win_pct", 0.0),
+            avgLossPct    = p.optDouble("avg_loss_pct", 0.0),
+            tradesPerYear = p.optInt("trades_per_year", 0),
+            exampleTrade  = p.optString("example_trade", ""),
+            risks         = risks,
+            brokerNotes   = p.optString("broker_notes", ""),
+        )
+    }
+
+    private fun emptyPlaybook(): Playbook = Playbook(
+        instrument = "-", instrumentAlt = "-", entryRule = "-", entryTime = "-",
+        exitRule = "-", exitTime = "-", positionSize = "-", stopLoss = "-",
+        capitalMinUsd = 0, tcostBps = 0, expectedWins = "-",
+        avgWinPct = 0.0, avgLossPct = 0.0, tradesPerYear = 0,
+        exampleTrade = "", risks = emptyList(), brokerNotes = "",
+    )
 }

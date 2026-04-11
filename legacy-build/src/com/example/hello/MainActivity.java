@@ -99,8 +99,13 @@ public class MainActivity extends Activity {
 
         int rank = 1;
         for (Pair p : pairs) {
-            root.addView(buildPairCard(rank++, p));
-            root.addView(spacer(dp(8)));
+            root.addView(buildPairCard(rank, p));
+            if (p.hasPlaybook) {
+                root.addView(spacer(dp(4)));
+                root.addView(buildPlaybookCard(rank, p));
+            }
+            root.addView(spacer(dp(10)));
+            rank++;
         }
 
         // Footer disclaimer
@@ -195,6 +200,108 @@ public class MainActivity extends Activity {
         return card;
     }
 
+    private View buildPlaybookCard(int rank, Pair p) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setBackgroundColor(0xFFF3EDF7);
+        int pad = dp(14);
+        card.setPadding(pad, pad, pad, pad);
+
+        addPlaybookHeader(card, "📘 Playbook — เทรดยังไง");
+
+        addKV(card, "Instrument", p.pbInstrument);
+        if (p.pbInstrumentAlt != null && p.pbInstrumentAlt.length() > 0 && !"-".equals(p.pbInstrumentAlt)) {
+            addKV(card, "ทางเลือก", p.pbInstrumentAlt);
+        }
+
+        addPlaybookDivider(card, "Entry");
+        addKV(card, "Rule", p.pbEntryRule);
+        addKV(card, "Time", p.pbEntryTime);
+
+        addPlaybookDivider(card, "Exit");
+        addKV(card, "Rule", p.pbExitRule);
+        addKV(card, "Time", p.pbExitTime);
+
+        addPlaybookDivider(card, "Risk / Size");
+        addKV(card, "Position size", p.pbPositionSize);
+        addKV(card, "Stop loss", p.pbStopLoss);
+        if (p.pbCapitalMinUsd > 0) {
+            addKV(card, "Capital ต่ำสุด", "$" + String.format("%,d", p.pbCapitalMinUsd));
+        }
+        if (p.pbTcostBps > 0) {
+            addKV(card, "Tcost estimate", p.pbTcostBps + " bps round-trip");
+        }
+
+        addPlaybookDivider(card, "Expected stats");
+        addKV(card, "Win rate", p.pbExpectedWins);
+        if (p.pbTradesPerYear > 0) addKV(card, "Trades/year", String.valueOf(p.pbTradesPerYear));
+        if (p.pbAvgWinPct != 0.0) addKV(card, "Avg win", String.format("%+.2f%%", p.pbAvgWinPct));
+        if (p.pbAvgLossPct != 0.0) addKV(card, "Avg loss", String.format("%+.2f%%", p.pbAvgLossPct));
+
+        if (p.pbExampleTrade != null && p.pbExampleTrade.length() > 0) {
+            addPlaybookDivider(card, "Example trade");
+            TextView ex = new TextView(this);
+            ex.setText(p.pbExampleTrade);
+            ex.setTextColor(ON_SURFACE);
+            ex.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            ex.setPadding(0, dp(2), 0, dp(4));
+            card.addView(ex);
+        }
+
+        if (p.pbRisks != null && p.pbRisks.size() > 0) {
+            addPlaybookDivider(card, "⚠ ความเสี่ยงเฉพาะคู่นี้");
+            for (String r : p.pbRisks) {
+                TextView rv = new TextView(this);
+                rv.setText("• " + r);
+                rv.setTextColor(0xFFB00020);
+                rv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+                rv.setPadding(0, dp(2), 0, 0);
+                card.addView(rv);
+            }
+        }
+
+        if (p.pbBrokerNotes != null && p.pbBrokerNotes.length() > 0 && !"-".equals(p.pbBrokerNotes)) {
+            addPlaybookDivider(card, "Broker notes");
+            TextView bn = new TextView(this);
+            bn.setText(p.pbBrokerNotes);
+            bn.setTextColor(MUTED);
+            bn.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            card.addView(bn);
+        }
+
+        return card;
+    }
+
+    private void addPlaybookHeader(LinearLayout parent, String text) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextColor(PRIMARY_DARK);
+        tv.setTypeface(Typeface.DEFAULT_BOLD);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        tv.setPadding(0, 0, 0, dp(6));
+        parent.addView(tv);
+    }
+
+    private void addPlaybookDivider(LinearLayout parent, String text) {
+        TextView tv = new TextView(this);
+        tv.setText(text);
+        tv.setTextColor(PRIMARY);
+        tv.setTypeface(Typeface.DEFAULT_BOLD);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        tv.setPadding(0, dp(8), 0, dp(2));
+        parent.addView(tv);
+    }
+
+    private void addKV(LinearLayout parent, String label, String value) {
+        if (value == null || value.length() == 0 || "-".equals(value)) return;
+        TextView tv = new TextView(this);
+        tv.setText(label + ": " + value);
+        tv.setTextColor(ON_SURFACE);
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        tv.setPadding(0, dp(2), 0, 0);
+        parent.addView(tv);
+    }
+
     private View spacer(int h) {
         View v = new View(this);
         v.setLayoutParams(new LinearLayout.LayoutParams(
@@ -212,6 +319,15 @@ public class MainActivity extends Activity {
     private static class Pair {
         String leadName, lagName, category;
         double beta, tStat, sharpe, hitRate;
+        boolean hasPlaybook;
+        String pbInstrument, pbInstrumentAlt;
+        String pbEntryRule, pbEntryTime, pbExitRule, pbExitTime;
+        String pbPositionSize, pbStopLoss;
+        int pbCapitalMinUsd, pbTcostBps, pbTradesPerYear;
+        String pbExpectedWins;
+        double pbAvgWinPct, pbAvgLossPct;
+        String pbExampleTrade, pbBrokerNotes;
+        List<String> pbRisks;
     }
 
     private List<Pair> loadResearch() throws IOException, JSONException {
@@ -229,6 +345,41 @@ public class MainActivity extends Activity {
             p.tStat    = o.getDouble("t_stat");
             p.sharpe   = o.getDouble("backtest_sharpe");
             p.hitRate  = o.getDouble("hit_rate");
+
+            JSONObject pb = o.optJSONObject("playbook");
+            if (pb != null) {
+                p.pbInstrument    = pb.optString("instrument", "-");
+                p.pbInstrumentAlt = pb.optString("instrument_alt", "-");
+                p.pbEntryRule     = pb.optString("entry_rule", "-");
+                p.pbEntryTime     = pb.optString("entry_time", "-");
+                p.pbExitRule      = pb.optString("exit_rule", "-");
+                p.pbExitTime      = pb.optString("exit_time", "-");
+                p.pbPositionSize  = pb.optString("position_size", "-");
+                p.pbStopLoss      = pb.optString("stop_loss", "-");
+                p.pbCapitalMinUsd = pb.optInt("capital_min_usd", 0);
+                p.pbTcostBps      = pb.optInt("tcost_bps", 0);
+                p.pbExpectedWins  = pb.optString("expected_wins", "-");
+                p.pbAvgWinPct     = pb.optDouble("avg_win_pct", 0.0);
+                p.pbAvgLossPct    = pb.optDouble("avg_loss_pct", 0.0);
+                p.pbTradesPerYear = pb.optInt("trades_per_year", 0);
+                p.pbExampleTrade  = pb.optString("example_trade", "");
+                p.pbBrokerNotes   = pb.optString("broker_notes", "");
+                p.hasPlaybook = p.pbInstrument != null
+                        && p.pbInstrument.length() > 0
+                        && !"-".equals(p.pbInstrument);
+
+                JSONArray risks = pb.optJSONArray("risks");
+                if (risks != null) {
+                    p.pbRisks = new ArrayList<String>(risks.length());
+                    for (int k = 0; k < risks.length(); k++) {
+                        p.pbRisks.add(risks.getString(k));
+                    }
+                } else {
+                    p.pbRisks = new ArrayList<String>();
+                }
+            } else {
+                p.pbRisks = new ArrayList<String>();
+            }
             out.add(p);
         }
         // Sort by |Sharpe| descending in case the asset wasn't pre-sorted

@@ -95,8 +95,127 @@ fun DetailScreen(pair: PairResult, onBack: () -> Unit) {
             }
 
             ExplanationCard(pair)
+
+            if (pair.playbook.hasDetail) {
+                PlaybookSection(pair)
+            }
+
             Spacer(Modifier.height(24.dp))
         }
+    }
+}
+
+@Composable
+private fun PlaybookSection(pair: com.example.myapp.data.PairResult) {
+    val pb = pair.playbook
+
+    Text(
+        "📘 Playbook — เทรดยังไง ขั้นตอนโดยละเอียด",
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(top = 8.dp),
+    )
+
+    PlaybookCard("Step 1 — Instrument (เลือก 1 ใน)") {
+        Labeled("แนะนำ", pb.instrument)
+        if (pb.instrumentAlt != "-" && pb.instrumentAlt.isNotBlank()) {
+            Labeled("ทางเลือก", pb.instrumentAlt)
+        }
+    }
+
+    PlaybookCard("Step 2 — Entry") {
+        Labeled("Rule", pb.entryRule)
+        Labeled("Time", pb.entryTime)
+    }
+
+    PlaybookCard("Step 3 — Exit") {
+        Labeled("Rule", pb.exitRule)
+        Labeled("Time", pb.exitTime)
+    }
+
+    PlaybookCard("Step 4 — Risk / Size") {
+        Labeled("Position size", pb.positionSize)
+        Labeled("Stop loss", pb.stopLoss)
+        if (pb.capitalMinUsd > 0) {
+            Labeled("Capital ต่ำสุด", "$${"%,d".format(pb.capitalMinUsd)}")
+        }
+        if (pb.tcostBps > 0) {
+            Labeled("Tcost estimate", "${pb.tcostBps} bps round-trip")
+        }
+    }
+
+    PlaybookCard("Step 5 — Expected stats") {
+        if (pb.expectedWins != "-") Labeled("Win rate", pb.expectedWins)
+        if (pb.tradesPerYear > 0)   Labeled("Trades/year", "${pb.tradesPerYear}")
+        if (pb.avgWinPct != 0.0)    Labeled("Avg win", "${"%+.2f".format(pb.avgWinPct)}%")
+        if (pb.avgLossPct != 0.0)   Labeled("Avg loss", "${"%+.2f".format(pb.avgLossPct)}%")
+    }
+
+    if (pb.exampleTrade.isNotBlank()) {
+        PlaybookCard("Example trade (sample)") {
+            Text(
+                pb.exampleTrade,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+            )
+        }
+    }
+
+    if (pb.risks.isNotEmpty()) {
+        PlaybookCard("⚠ ความเสี่ยงเฉพาะคู่นี้") {
+            pb.risks.forEach { r ->
+                Text(
+                    "• $r",
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                )
+            }
+        }
+    }
+
+    if (pb.brokerNotes.isNotBlank() && pb.brokerNotes != "-") {
+        PlaybookCard("Broker notes") {
+            Text(
+                pb.brokerNotes,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlaybookCard(title: String, content: @Composable () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        Column(Modifier.padding(14.dp)) {
+            Text(
+                title,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.height(6.dp))
+            content()
+        }
+    }
+}
+
+@Composable
+private fun Labeled(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp),
+    ) {
+        Text(
+            "$label: ",
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(1f),
+        )
     }
 }
 
