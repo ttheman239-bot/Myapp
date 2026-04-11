@@ -168,6 +168,13 @@ private fun PairRow(pair: PairResult, rank: Int, onClick: () -> Unit) {
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    pair.category,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    fontWeight = FontWeight.Medium,
+                )
             }
             VerdictBadge(pair.verdict)
         }

@@ -25,20 +25,32 @@ import sys
 from dataclasses import asdict, dataclass, field
 
 
-# Lead -> Lag candidate pairs (symbol, human-readable name, timezone hint)
-PAIRS: list[tuple[str, str, str, str]] = [
-    # (lead, lag, lead_name, lag_name)
-    ("^GSPC", "^AXJO", "S&P 500",  "ASX 200"),
-    ("^GSPC", "^N225", "S&P 500",  "Nikkei 225"),
-    ("^GSPC", "^KS11", "S&P 500",  "KOSPI"),
-    ("^GSPC", "^HSI",  "S&P 500",  "Hang Seng"),
-    ("^GSPC", "^TWII", "S&P 500",  "Taiwan Weighted"),
-    ("^GSPC", "^SET.BK", "S&P 500", "SET Index"),
-    ("^GSPC", "^STI",  "S&P 500",  "Straits Times"),
-    ("^N225", "^GSPC", "Nikkei 225", "S&P 500 (next)"),
-    ("^N225", "^FTSE", "Nikkei 225", "FTSE 100"),
-    ("^FTSE", "^GSPC", "FTSE 100",  "S&P 500 (next)"),
-    ("^GDAXI", "^GSPC","DAX",       "S&P 500 (next)"),
+# Lead -> Lag candidate pairs across asset classes.
+# Each tuple: (lead_symbol, lag_symbol, lead_name, lag_name, category)
+PAIRS: list[tuple[str, str, str, str, str]] = [
+    # --- Equity time-zone drift (West -> East, main edge) ---
+    ("^GSPC", "^AXJO",     "S&P 500",   "ASX 200",         "Equity→Equity"),
+    ("^GSPC", "^N225",     "S&P 500",   "Nikkei 225",      "Equity→Equity"),
+    ("^GSPC", "^KS11",     "S&P 500",   "KOSPI",           "Equity→Equity"),
+    ("^GSPC", "^HSI",      "S&P 500",   "Hang Seng",       "Equity→Equity"),
+    ("^GSPC", "^TWII",     "S&P 500",   "Taiwan Weighted", "Equity→Equity"),
+    ("^GSPC", "^STI",      "S&P 500",   "Straits Times",   "Equity→Equity"),
+    ("^GSPC", "^SET.BK",   "S&P 500",   "SET Index",       "Equity→Equity"),
+    # --- Crypto (24/7; reacts to US close during US night) ---
+    ("^GSPC", "BTC-USD",   "S&P 500",   "Bitcoin",         "Equity→Crypto"),
+    ("^GSPC", "ETH-USD",   "S&P 500",   "Ethereum",        "Equity→Crypto"),
+    # --- Volatility (VIX is leveraged-inverse to S&P) ---
+    ("^GSPC", "^VIX",      "S&P 500",   "VIX (next day)",  "Equity→Vol"),
+    # --- Commodities ---
+    ("DX-Y.NYB", "GC=F",   "DXY",       "Gold (next)",     "FX→Commodity"),
+    ("^GSPC",    "CL=F",   "S&P 500",   "WTI Crude (next)","Equity→Commodity"),
+    # --- FX ---
+    ("^GSPC",    "USDJPY=X","S&P 500",  "USDJPY",          "Equity→FX"),
+    # --- Baseline weak pairs (East -> West) ---
+    ("^N225",  "^GSPC",    "Nikkei 225","S&P 500 (next)",  "Equity→Equity"),
+    ("^N225",  "^FTSE",    "Nikkei 225","FTSE 100",        "Equity→Equity"),
+    ("^FTSE",  "^GSPC",    "FTSE 100",  "S&P 500 (next)",  "Equity→Equity"),
+    ("^GDAXI", "^GSPC",    "DAX",       "S&P 500 (next)",  "Equity→Equity"),
 ]
 
 
@@ -48,6 +60,7 @@ class PairResult:
     lag_symbol: str
     lead_name: str
     lag_name: str
+    category: str
     n_obs: int
     beta: float              # regression coefficient r_lag(t+1) = α + β r_lead(t)
     r_squared: float
@@ -76,6 +89,7 @@ def fetch_series(symbol: str, years: int) -> "pd.Series":
 def analyse_pair(lead: "pd.Series", lag: "pd.Series",
                  lead_symbol: str, lag_symbol: str,
                  lead_name: str, lag_name: str,
+                 category: str,
                  tcost_bps: float = 5.0) -> PairResult:
     import numpy as np
     import pandas as pd
@@ -134,6 +148,7 @@ def analyse_pair(lead: "pd.Series", lag: "pd.Series",
         lag_symbol=lag_symbol,
         lead_name=lead_name,
         lag_name=lag_name,
+        category=category,
         n_obs=n,
         beta=round(float(beta), 4),
         r_squared=round(float(r_squared), 4),
@@ -166,7 +181,7 @@ def main() -> int:
     cache: dict[str, "pd.Series"] = {}
     results: list[PairResult] = []
 
-    for lead_sym, lag_sym, lead_name, lag_name in PAIRS:
+    for lead_sym, lag_sym, lead_name, lag_name, category in PAIRS:
         try:
             if lead_sym not in cache:
                 cache[lead_sym] = fetch_series(lead_sym, args.years)
@@ -174,18 +189,18 @@ def main() -> int:
                 cache[lag_sym] = fetch_series(lag_sym, args.years)
             res = analyse_pair(
                 cache[lead_sym], cache[lag_sym],
-                lead_sym, lag_sym, lead_name, lag_name,
+                lead_sym, lag_sym, lead_name, lag_name, category,
                 tcost_bps=args.tcost_bps,
             )
             results.append(res)
-            print(f"OK  {lead_name:12s} -> {lag_name:18s}  "
+            print(f"OK  {lead_name:12s} -> {lag_name:24s}  "
                   f"β={res.beta:+.3f}  t={res.t_stat:+.2f}  "
                   f"Sharpe={res.backtest_sharpe:+.2f}  hit={res.hit_rate:.1%}")
         except Exception as e:
             print(f"SKIP {lead_name} -> {lag_name}: {e}", file=sys.stderr)
 
-    # Rank by backtest Sharpe (descending)
-    results.sort(key=lambda r: r.backtest_sharpe, reverse=True)
+    # Rank by |Sharpe| descending so that strong inverse signals (e.g. VIX) also surface
+    results.sort(key=lambda r: -abs(r.backtest_sharpe))
 
     payload = {
         "generated_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),

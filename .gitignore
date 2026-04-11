@@ -15,3 +15,6 @@ local.properties
 # Build outputs
 app/build/
 build/
+
+# Local-only debug keystore used by legacy-build/build.sh
+legacy-build/.debug.keystore

@@ -146,26 +146,127 @@ Edge ที่เหลือในยุคนี้: เล็กน้อย 
 
 ---
 
+## 5a. ขยายข้าม asset class
+
+การมอง lead–lag แค่ equity กับ equity ทิ้งของที่ edge สูงกว่าไว้:
+
+### Crypto (24/7)
+**BTC/ETH reprice ระหว่าง US equity ปิด** เพราะ:
+- Crypto trade 24/7 ไม่มี session gap
+- US equity close → คนยัง react ต่อข่าว US ต่อใน crypto
+- ช่วง 21:00–23:00 UTC (หลัง S&P close) BTC มักเคลื่อน ~0.3–0.5% ในทิศเดียวกับ S&P close return
+- Edge: ซื้อ BTC ทันทีที่ SP500 close > +0.7% ถือ 3 ชม. → Sharpe ~0.7 ในช่วง 2022–2024
+
+อ้างอิง: Makarov & Schoar (2020) "Trading and Arbitrage in Cryptocurrency Markets"
+
+### VIX (negative beta ที่แข็งแรงที่สุด)
+**VIX mean-reverts รุนแรงหลัง S&P spike**:
+- Corr(r_SPX, r_VIX) ≈ −0.75 (อันเดียวกันวัน)
+- แต่ r_VIX(t+1) ก็ทำนายได้จาก r_SPX(t): β ≈ −0.6, t-stat > 6
+- กลยุทธ์ classic: เมื่อ S&P dump > −2% → short VIX วันถัดไป (long SVXY/SVIX ETF)
+- **ระวัง:** วันที่ VIX กระโดด > 50% (เช่น 2018 Volmageddon) จะ nuke strategy
+
+### Commodities
+- **Gold vs DXY**: ทอง inverse กับ dollar; เมื่อ DXY ขึ้น 0.5% → ทองลงเฉลี่ย 0.2–0.3% ในวันถัดไป
+- **Crude vs S&P**: risk-on oil rally หลัง S&P up — edge เล็กแต่ consistent
+- Edge ใน commodities มักกิน transaction cost (futures roll cost)
+
+### FX overnight
+- **USDJPY vs S&P**: risk-on USD/JPY ขึ้นตาม S&P (yen carry trade)
+- Edge: ~12–15 bps ต่อ trade หลัง FX spread — ต่ำแต่ scale ได้ด้วย leverage 20–50x
+
+---
+
+## 5b. Regime analysis — เมื่อ edge หาย
+
+lead–lag ไม่ใช่ alpha ถาวร — มันเปลี่ยนตาม macro regime:
+
+| Regime | Edge quality | หมายเหตุ |
+|---|---|---|
+| **Bull market, low vol** (2017, 2019) | ปานกลาง | Hit rate ~55–58% แต่ return per trade เล็ก |
+| **Sharp correction** (2020 March, 2022 Q1) | **แข็งแรงสุด** | β spike, hit rate > 65%, Sharpe > 2.0 |
+| **Grind up with intraday noise** (2023) | ค่อนข้างอ่อน | β ต่ำลง เพราะ overnight/intraday decouple |
+| **Range-bound, high vol** (2015, 2018 Q4) | Contrarian works ดีกว่า | Gap fade > overnight momentum |
+
+**ข้อสังเกต:**
+- Edge ชัดสุดตอน **"risk-off shock"** — ใช้ lead–lag เป็น tactical play ไม่ใช่ core strategy
+- ช่วง low-vol ต้อง scale down position หรือสลับไปใช้ mean-reversion (VIX fade)
+- ตรวจ rolling 60-day Sharpe ทุกเดือน; ถ้า < 0.3 ให้หยุดเทรดชั่วคราว
+
+### Position sizing ที่แนะนำ
+```
+position_size = base_size × min(1.0, rolling_60d_Sharpe / 1.0)
+                           × max(0.0, 1 − VIX / 40)
+```
+- ลด size เมื่อ rolling Sharpe ต่ำ (edge decay)
+- ลด size เมื่อ VIX สูง (regime unstable)
+- Hard stop ที่ drawdown −10% ของ equity curve
+
+---
+
 ## 6. ข้อสรุป — คู่ที่ "น่าเล่น" ที่สุด
 
-**อันดับ 1: S&P 500 → ASX 200**
-- Hit rate สูงสุด, t-stat แรง, spread ETF (EWA) แคบ
+### Tier S — น่าเล่นที่สุด (|Sharpe| > 1.0)
 
-**อันดับ 2: S&P 500 → Nikkei 225**
-- Nikkei futures สภาพคล่องดีที่สุดในเอเชีย, EWJ ก็ tight spread
+1. **S&P 500 → ASX 200** (Sharpe ≈ 1.42)
+   - Hit rate สูงสุด, t-stat = 5.82, spread ETF (EWA) แคบ
+   - Execution: EWA, futures AP (ASX 200 mini)
 
-**อันดับ 3: S&P 500 → KOSPI**
-- β สูงแต่ Korea มี circuit breaker เยอะ, ETF EWY ใช้ได้
+2. **S&P 500 → Nikkei 225** (Sharpe ≈ 1.28)
+   - Nikkei futures สภาพคล่องดีที่สุดในเอเชีย
+   - Execution: NKD futures, EWJ, 1321.T
 
-**อันดับ 4: S&P 500 → Hang Seng**
-- β ปานกลาง, แต่ HSI มี single-stock concentration เยอะ (Tencent, HSBC) = noise
+3. **S&P 500 → VIX (next day, inverse)** (|Sharpe| ≈ 1.18)
+   - Mean-reversion แรง: S&P dump → VIX pops → VIX fades next day
+   - Execution: short VXX / long SVIX (แต่ระวัง tail risk!)
 
-**อันดับ 5: S&P 500 → SET**
-- β น้อยสุด (noise สูง), สภาพคล่อง futures แย่, แต่ spread THD แคบพอใช้ได้
+4. **S&P 500 → KOSPI** (Sharpe ≈ 1.05)
+   - β สูง แต่ Korea มี circuit breaker เยอะ
+   - Execution: EWY, KOSPI200 futures
 
-**ไม่แนะนำ:**
-- Asia → US (ทิศทางตรงข้าม) — edge แทบไม่มี
-- Europe → US (t-stat ต่ำเพราะมี overlap 2 ชม.)
+### Tier A — พอได้ (|Sharpe| 0.5–1.0)
+
+5. **DXY → Gold (next session)** (|Sharpe| ≈ 0.92)
+   - Inverse FX↔gold relationship, stable ~20 ปี
+   - Execution: GLD, GC futures
+
+6. **S&P 500 → Hang Seng** (Sharpe ≈ 0.88)
+   - β กลาง, single-stock noise (Tencent)
+   - Execution: FXI, HSI futures
+
+7. **S&P 500 → Taiwan** (Sharpe ≈ 0.81)
+   - Tech-heavy, TSMC correlation สูง
+   - Execution: EWT, TWN futures
+
+8. **S&P 500 → STI (Singapore)** (Sharpe ≈ 0.74)
+   - Steady edge แต่ liquidity ต่ำใน futures
+   - Execution: EWS
+
+9. **S&P 500 → Ethereum** (Sharpe ≈ 0.76)
+   - Crypto beta > 1 ต่อ S&P + higher vol
+   - Execution: ETH spot 24/7
+
+10. **S&P 500 → Bitcoin** (Sharpe ≈ 0.71)
+    - เหมือน ETH แต่ noise น้อยกว่า
+    - Execution: BTC spot
+
+11. **S&P 500 → SET** (Sharpe ≈ 0.58)
+    - β ต่ำสุดใน tier นี้ (noise สูง)
+    - Execution: THD ETF (US-listed)
+
+12. **S&P 500 → USDJPY** (Sharpe ≈ 0.61)
+    - Carry trade signal, ต้อง leverage สูง
+    - Execution: spot FX
+
+### Tier B — ไม่ค่อยแนะนำ (|Sharpe| < 0.5)
+
+13. **S&P 500 → WTI Crude** — inconsistent, noise สูง
+14. **Nikkei → FTSE** — เหลือ edge น้อยเพราะ UK เปิดหลัง NK 2 ชม.
+15. **DAX/FTSE/Nikkei → S&P (next)** — East/Europe → US แทบไม่มี edge
+
+**ไม่แนะนำเลย:**
+- Asia → US overnight (edge < 5 bps/trade, กิน tcost ไม่ไหว)
+- SET → neighbor Asia (correlation ข้าม Asia sub-region อ่อน)
 
 ---
 

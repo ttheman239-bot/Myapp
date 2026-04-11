@@ -22,6 +22,7 @@ data class PairResult(
     val lagSymbol: String,
     val leadName: String,
     val lagName: String,
+    val category: String,
     val nObs: Int,
     val beta: Double,
     val rSquared: Double,
@@ -36,9 +37,9 @@ data class PairResult(
     /** Loose verdict useful for a quick badge on the ranking list. */
     val verdict: Verdict
         get() = when {
-            backtestSharpe >= 1.0 && tStat >= 3.0 -> Verdict.STRONG
-            backtestSharpe >= 0.5 && tStat >= 2.0 -> Verdict.OK
-            else                                  -> Verdict.WEAK
+            kotlin.math.abs(backtestSharpe) >= 1.0 && kotlin.math.abs(tStat) >= 3.0 -> Verdict.STRONG
+            kotlin.math.abs(backtestSharpe) >= 0.5 && kotlin.math.abs(tStat) >= 2.0 -> Verdict.OK
+            else                                                                    -> Verdict.WEAK
         }
 }
 
@@ -83,6 +84,7 @@ object ResearchRepository {
                         lagSymbol      = p.getString("lag_symbol"),
                         leadName       = p.getString("lead_name"),
                         lagName        = p.getString("lag_name"),
+                        category       = p.optString("category", "Equity→Equity"),
                         nObs           = p.getInt("n_obs"),
                         beta           = p.getDouble("beta"),
                         rSquared       = p.getDouble("r_squared"),
