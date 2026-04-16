@@ -1,0 +1,59 @@
+name: Refresh Research Data
+
+on:
+  workflow_dispatch:
+    inputs:
+      years:
+        description: "Years of history to fetch"
+        default: "5"
+        required: true
+      commit:
+        description: "Commit updated research.json back to branch"
+        type: boolean
+        default: true
+  schedule:
+    # Refresh weekly on Monday 06:00 UTC
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install deps
+        run: pip install --quiet yfinance pandas numpy
+
+      - name: Run lead-lag research
+        run: |
+          python research/lead_lag.py \
+            --years "${{ github.event.inputs.years || '5' }}" \
+            --out app/src/main/assets/research.json
+
+      - name: Upload generated research.json
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-json
+          path: app/src/main/assets/research.json
+
+      - name: Commit updated research.json
+        if: ${{ github.event.inputs.commit != 'false' }}
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet app/src/main/assets/research.json; then
+            echo "No changes to research.json"
+            exit 0
+          fi
+          git add app/src/main/assets/research.json
+          git commit -m "chore(research): refresh lead-lag data ($(date -u +%Y-%m-%d))"
+          git push
